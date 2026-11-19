@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="author" content="KENTA SHINKAWA">
+<meta name="theme-color" content="#2445C9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="まいにちドリブル">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="doribu-icon.png">
+<link rel="apple-touch-icon" href="doribu-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>まいにちドリブル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap">
+<style>
+/* Layout: one-column phone app; a court-line "scoreboard" hero, then today's menu as a numbered run sheet. */
+:root{
+  --bg:#EEF1F8; --surface:#FFFFFF; --sunk:#E2E7F2; --ink:#141A2E; --muted:#5B6480;
+  --line:#CCD3E3; --ball:#EC5A16; --ball-ink:#FFFFFF; --ball-soft:#FDE3D5;
+  --court:#2445C9; --court-soft:#DCE3FB; --win:#17925A; --win-soft:#D6F2E3;
+  --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1020; --surface:#171B30; --sunk:#20253F; --ink:#EDF0FA; --muted:#9AA3C2;
+  --line:#2C3354; --ball:#FF7533; --ball-ink:#1A0B03; --ball-soft:#3A2015;
+  --court:#7F96FF; --court-soft:#1F2850; --win:#3FD08C; --win-soft:#143A2A; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D1020; --surface:#171B30; --sunk:#20253F; --ink:#EDF0FA; --muted:#9AA3C2;
+  --line:#2C3354; --ball:#FF7533; --ball-ink:#1A0B03; --ball-soft:#3A2015;
+  --court:#7F96FF; --court-soft:#1F2850; --win:#3FD08C; --win-soft:#143A2A; color-scheme:dark }
+
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.app{max-width:520px;margin:0 auto;padding-block:20px 40px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--court);outline-offset:2px}
+.disp{font-family:var(--f-display);font-weight:400;letter-spacing:.01em}
+.num{font-variant-numeric:tabular-nums}
+.label{font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand h1{font-family:var(--f-display);font-size:22px;font-weight:400}
+.iconbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;height:40px;min-width:40px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
+
+/* scoreboard hero */
+.board{background:var(--court);color:#fff;border-radius:20px;padding:20px 20px 16px;position:relative;overflow:hidden}
+.board::before{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border:3px solid rgba(255,255,255,.18);border-radius:50%}
+.board::after{content:"";position:absolute;right:50px;top:-60px;width:3px;height:300px;background:rgba(255,255,255,.14)}
+.board .row{display:flex;align-items:flex-end;gap:14px;position:relative}
+.streak-n{font-family:var(--f-display);font-size:76px;line-height:.9}
+.streak-u{font-weight:900;font-size:18px;padding-bottom:8px}
+.board .sub{position:relative;font-size:13px;opacity:.9;margin-top:6px}
+.week{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:16px}
+.day{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;opacity:.92}
+.dot{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.45);display:grid;place-items:center}
+.dot.done{background:var(--ball);border-color:var(--ball)}
+.dot.today{box-shadow:0 0 0 3px rgba(255,255,255,.35)}
+.dot svg{width:16px;height:16px}
+
+/* reward */
+.reward{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.reward .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.reward .yen{font-family:var(--f-display);font-size:24px;color:var(--ball)}
+.bar{height:12px;border-radius:99px;background:transparent;overflow:hidden;display:grid;grid-auto-flow:column;gap:3px;padding:0}
+.bar span{background:var(--sunk);border-radius:3px}
+.bar span.on{background:var(--ball)}
+.reward small{color:var(--muted);font-size:13px}
+
+/* menu */
+.menu{display:flex;flex-direction:column;gap:10px}
+.menu-head{display:flex;justify-content:space-between;align-items:baseline;gap:4px 8px;flex-wrap:wrap}
+.menu-head h2{font-size:18px;font-weight:900}
+ol.drills{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+ol.drills li{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:11px 14px;border-top:1px solid var(--line)}
+ol.drills li:first-child{border-top:0}
+.ix{font-family:var(--f-display);font-size:15px;color:var(--muted);text-align:center}
+.dname{font-weight:700;min-width:0}
+.dtip{display:block;font-size:12.5px;color:var(--muted);font-weight:400;line-height:1.45}
+.tag{font-size:11px;font-weight:900;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.tag.base{background:var(--court-soft);color:var(--court)}
+.tag.new{background:var(--ball-soft);color:var(--ball)}
+.go{border:0;background:var(--ball);color:var(--ball-ink);border-radius:16px;padding:18px;font-family:var(--f-display);font-size:22px;box-shadow:0 5px 0 color-mix(in srgb,var(--ball) 60%,#000)}
+.go:active{transform:translateY(3px);box-shadow:0 2px 0 color-mix(in srgb,var(--ball) 60%,#000)}
+.donebanner{background:var(--win-soft);color:var(--win);border-radius:var(--r);padding:10px 14px;font-weight:700;font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-family:var(--f-display);font-size:22px;font-weight:400}
+.stat span{font-size:12px;color:var(--muted);font-weight:700}
+
+/* workout */
+.work{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 20px) max(16px,env(safe-area-inset-left,0px))}
+.work.rest{background:var(--court-soft)}
+.work-in{max-width:520px;width:100%;margin:0 auto;flex:1;display:flex;flex-direction:column;gap:14px}
+.work-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.prog{display:flex;gap:4px;flex:1}
+.prog i{flex:1;height:6px;border-radius:9px;background:var(--line)}
+.prog i.on{background:var(--ball)}
+.prog i.cur{background:color-mix(in srgb,var(--ball) 50%,var(--line))}
+.phase{font-weight:900;font-size:14px;letter-spacing:.08em;color:var(--muted);text-align:center;margin-top:8px}
+.work.rest .phase{color:var(--court)}
+.wname{font-family:var(--f-display);font-size:clamp(26px,8vw,36px);text-align:center;line-height:1.25}
+.wtip{text-align:center;color:var(--muted);font-size:15px;max-width:30em;margin:0 auto}
+.ring{position:relative;width:min(68vw,300px,34vh);aspect-ratio:1;max-width:100%;margin:6px auto 0}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .trk{fill:none;stroke:var(--line);stroke-width:14}
+.ring .val{fill:none;stroke:var(--ball);stroke-width:14;stroke-linecap:round}
+.work.rest .ring .val{stroke:var(--court)}
+.ring .sec{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-display);font-size:clamp(64px,22vw,104px)}
+.next{text-align:center;font-size:14px;color:var(--muted)}
+.next b{color:var(--ink)}
+.ctrls{margin-top:auto;display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:10px}
+.ctrl{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px 8px;font-weight:900}
+.ctrl.main{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* finish */
+.finish{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;text-align:center;overflow-y:auto;
+  padding:calc(env(safe-area-inset-top,0px) + 20px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 20px) max(16px,env(safe-area-inset-left,0px))}
+.finish canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.finish .big{font-family:var(--f-display);font-size:clamp(40px,13vw,64px);line-height:1.1;color:var(--ball)}
+.finish p{margin:0;max-width:26em}
+.finish .earn{background:var(--win-soft);color:var(--win);font-weight:900;border-radius:14px;padding:12px 18px;font-size:18px}
+.finish .go{position:relative;min-width:220px}
+
+/* settings */
+dialog{border:0;border-radius:18px;background:var(--surface);color:var(--ink);padding:20px;width:min(460px,calc(100vw - 32px));max-height:85vh}
+dialog::backdrop{background:rgba(5,8,20,.55)}
+.set{display:flex;flex-direction:column;gap:16px}
+.set h2{font-size:18px;font-weight:900}
+.field{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.field label{font-weight:700}
+.field input[type=number]{width:96px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;text-align:right}
+.field input[type=checkbox]{width:22px;height:22px;accent-color:var(--ball)}
+.hint{font-size:12.5px;color:var(--muted);margin:-8px 0 0}
+.paybox{background:var(--sunk);border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 14px;font-weight:700}
+.btn.pri{background:var(--ball);color:var(--ball-ink);border-color:var(--ball)}
+.btn.danger{color:#C2362B}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.store{font-size:12px;color:var(--muted)}
+/* level / tickets / badges */
+.level{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.level .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rank{font-family:var(--f-display);font-size:20px}
+.lv{font-weight:900;color:var(--court)}
+.xpbar{height:12px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.xpbar i{display:block;height:100%;background:var(--court);border-radius:99px;transition:width .6s ease}
+.level small{color:var(--muted);font-size:13px}
+.tickets{position:relative;margin-top:12px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tk{display:inline-block;width:26px;height:16px;border-radius:4px;border:2px dashed rgba(255,255,255,.55)}
+.tk.on{background:#FFD23F;border:2px solid #FFD23F}
+.badges{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:700;text-align:center;color:var(--muted);line-height:1.3}
+.badge .medal{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-size:15px;background:var(--sunk);color:var(--muted);border:2px dashed var(--line)}
+.badge.got{color:var(--ink)}
+.badge.got .medal{background:var(--ball);color:var(--ball-ink);border:2px solid var(--ink)}
+.badge.got.tot .medal{background:var(--court);color:var(--surface)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;position:relative}
+.chip{background:var(--surface);border:2px solid var(--ink);border-radius:99px;padding:5px 14px;font-weight:900;font-size:14px}
+.chip.hot{background:var(--win-soft);color:var(--win);border-color:var(--win)}
+.chest{position:relative;border:2.5px solid var(--ink);background:#FFD23F;color:#2A1206;border-radius:14px;padding:12px 18px;font-weight:900;font-size:16px}
+.chest.open{background:var(--surface);color:var(--ink)}
+.field select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+.credit{margin:0;text-align:center;font-size:12px;color:var(--muted)}
+/* quiz, calendar, voice recorder */
+.tag.quiz{background:var(--win-soft);color:var(--win)}
+.wname.q{font-size:clamp(44px,15vw,72px);letter-spacing:.02em}
+.wname.q .ans{color:var(--win)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.cal .wd{font-size:11px;font-weight:700;color:var(--muted);text-align:center}
+.cal .c{aspect-ratio:1;max-width:100%;border-radius:7px;background:var(--sunk);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted)}
+.cal .c.done{background:var(--ball);color:var(--ball-ink)}
+.cal .c.fz{background:var(--court-soft);color:var(--court)}
+.cal .c.today{outline:2px solid var(--ink);outline-offset:-2px}
+.cal .c.fut{opacity:.35}
+.cal .c.blank{background:transparent}
+.rec{display:flex;flex-direction:column;gap:8px}
+.recrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.recrow .t{font-size:13.5px;font-weight:700;min-width:0}
+.recrow .t small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.recrow .b{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.recrow .btn{padding:6px 10px;font-size:13px}
+.recrow.has .t::before{content:"● ";color:var(--win)}
+.btn.recing{background:#C2362B;color:#fff;border-color:#C2362B}
+.sect{font-weight:900;font-size:15px;margin-top:4px}
+/* ドリブー */
+.buddy{display:flex;align-items:center;gap:12px}
+.doribu{width:92px;height:100px;flex:none;background:none;border:0;padding:0;display:block;transform-origin:50% 100%}
+.doribu svg{width:100%;height:100%;overflow:visible;display:block}
+.bubble{position:relative;background:var(--surface);border:2.5px solid var(--ink);border-radius:18px;padding:10px 14px;font-weight:900;font-size:15.5px;line-height:1.45;min-width:0;flex:1}
+.bubble::before{content:"";position:absolute;left:-9px;top:50%;margin-top:-7px;width:13px;height:13px;background:var(--surface);border-left:2.5px solid var(--ink);border-bottom:2.5px solid var(--ink);transform:rotate(45deg)}
+.bubble.up{flex:none;max-width:24em}
+.bubble.up::before{left:50%;top:-8px;margin:0 0 0 -7px;transform:rotate(135deg)}
+.bubble.pop{animation:pop .35s ease-out}
+.buddy.small .doribu{width:62px;height:68px}
+.buddy.small .bubble{font-size:14.5px;padding:8px 12px}
+.work.rest .bubble{background:var(--surface)}
+.finish .doribu{width:116px;height:128px;position:relative}
+.finish .bubble{position:relative;font-size:18px}
+@keyframes pop{0%{transform:scale(.85);opacity:.4}70%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
+@keyframes hop{0%,100%{transform:translateY(0)}35%{transform:translateY(-10px)}55%{transform:translateY(0) scale(1.06,.92)}}
+@keyframes dribble{0%,100%{transform:translateY(0) scale(1,1)}45%{transform:translateY(-8px)}50%{transform:translateY(2px) scale(1.08,.9)}}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes droop{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(3px) rotate(-5deg)}}
+@keyframes jump{0%,100%{transform:translateY(0) scale(1,1)}30%{transform:translateY(-34px) scale(.96,1.06)}55%{transform:translateY(0) scale(1.1,.88)}}
+@keyframes party{0%{transform:translateY(0) rotate(0)}30%{transform:translateY(-48px) rotate(180deg)}55%{transform:translateY(0) rotate(360deg) scale(1.1,.88)}100%{transform:translateY(0) rotate(360deg)}}
+.m-hop{animation:hop 1.4s ease-in-out infinite}
+.m-dribble{animation:dribble .45s ease-in-out infinite}
+.m-sway{animation:sway 2.4s ease-in-out infinite}
+.m-droop{animation:droop 3s ease-in-out infinite}
+.m-jump{animation:jump .8s ease-in-out infinite}
+.m-party{animation:party 1.1s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app" id="home">
+  <div class="top">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="15" fill="var(--ball)"/><path d="M2 17h30M17 2v30M6 6c5 4 5 18 0 22M28 6c-5 4-5 18 0 22" stroke="var(--ink)" stroke-width="1.6" fill="none" opacity=".55"/></svg>
+      <h1>まいにちドリブル</h1>
+    </div>
+    <button class="iconbtn" id="openSet" type="button">おうちの人へ</button>
+  </div>
+
+  <div class="buddy">
+    <button class="doribu" id="homeDori" type="button" aria-label="ドリブーにしゃべってもらう"></button>
+    <div class="bubble" id="homeSay" aria-live="polite"></div>
+  </div>
+
+  <section class="board" aria-label="連続記録">
+    <div class="label" style="color:rgba(255,255,255,.8)">れんぞく記録</div>
+    <div class="row"><span class="streak-n num" id="streakN">0</span><span class="streak-u">日れんぞく</span></div>
+    <div class="sub" id="streakSub">今日の5分で記録スタート！</div>
+    <div class="week" id="week"></div>
+    <div class="tickets" id="tickets"></div>
+  </section>
+
+  <section class="reward" aria-label="お小遣い">
+    <div class="head">
+      <span class="label">お小遣いまで</span>
+      <span id="rewardLeft" style="font-weight:900"></span>
+    </div>
+    <div class="bar" id="rewardBar"></div>
+    <div class="head">
+      <small id="rewardRule"></small>
+      <span><small>もらえる分 </small><span class="yen num" id="unpaid">0円</span></span>
+    </div>
+  </section>
+
+  <section class="level" aria-label="レベル">
+    <div class="head"><span><span class="rank" id="rank"></span> <span class="lv num" id="lv"></span></span><span class="label num" id="xpTxt"></span></div>
+    <div class="xpbar"><i id="xpFill" style="width:0%"></i></div>
+    <small id="xpNext"></small>
+  </section>
+
+  <div class="donebanner" id="doneBanner" hidden>今日の練習はクリア済み！もう1回やってもOK。</div>
+
+  <section class="menu">
+    <div class="menu-head">
+      <h2 id="menuTitle">今日のメニュー</h2>
+      <span class="label">30秒 × 7・休み10秒・約5分</span>
+    </div>
+    <ol class="drills" id="drills"></ol>
+  </section>
+
+  <button class="go" id="start" type="button">練習スタート</button>
+
+  <div class="stats">
+    <div class="stat"><b class="num" id="sBest">0</b><span>さいこう連続</span></div>
+    <div class="stat"><b class="num" id="sTotal">0</b><span>練習した日</span></div>
+    <div class="stat"><b class="num" id="sEarn">0</b><span>もらった合計(円)</span></div>
+  </div>
+
+  <section class="menu">
+    <div class="menu-head"><h2>練習カレンダー</h2><span class="label">オレンジ＝練習した日</span></div>
+    <div class="cal" id="cal"></div>
+  </section>
+
+  <section class="menu">
+    <div class="menu-head"><h2>バッジ</h2><span class="label num" id="badgeCount"></span></div>
+    <div class="badges" id="badges"></div>
+  </section>
+  <p class="credit">ドリブーの声：VOICEVOX:ずんだもん</p>
+</div>
+
+<div class="work" id="work" hidden>
+  <div class="work-in">
+    <div class="work-top">
+      <div class="prog" id="prog"></div>
+      <button class="iconbtn" id="mute" type="button" aria-label="音のオンオフ">音 ON</button>
+    </div>
+    <div class="phase" id="wPhase">じゅんび</div>
+    <div class="wname" id="wName"></div>
+    <div class="wtip" id="wTip"></div>
+    <div class="ring">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="trk" cx="60" cy="60" r="52"/><circle class="val" id="ringVal" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="0"/></svg>
+      <div class="sec num" id="wSec">5</div>
+    </div>
+    <div class="next" id="wNext"></div>
+    <div class="buddy small"><div class="doribu" id="wDori"></div><div class="bubble" id="wSay" aria-live="polite"></div></div>
+    <div class="ctrls">
+      <button class="ctrl" id="quit" type="button">やめる</button>
+      <button class="ctrl main" id="pause" type="button">一時停止</button>
+      <button class="ctrl" id="skip" type="button">次へ</button>
+    </div>
+  </div>
+</div>
+
+<div class="finish" id="finish" hidden>
+  <canvas id="confetti"></canvas>
+  <div class="doribu" id="fDori"></div>
+  <div class="bubble up" id="fSay"></div>
+  <div class="label">今日の練習クリア</div>
+  <div class="big" id="fBig">3日れんぞく！</div>
+  <p id="fMsg"></p>
+  <div class="chips" id="fChips"></div>
+  <div class="earn" id="fEarn" hidden></div>
+  <button class="chest" id="fChest" type="button">ボーナスの宝箱をあける</button>
+  <button class="go" id="fOk" type="button">やったね</button>
+</div>
+
+<dialog id="setDlg">
+  <form class="set" method="dialog" id="setForm">
+    <h2>おうちの人へ</h2>
+    <div class="field"><label for="rDays">何日れんぞくでお小遣い</label><input id="rDays" type="number" min="1" max="60" step="1"></div>
+    <div class="field"><label for="rYen">1回にもらえる金額（円）</label><input id="rYen" type="number" min="0" max="100000" step="10"></div>
+    <p class="hint">れんぞく日数がこの日数に届くたびにたまります（7日なら7・14・21日目…）。チケットなしで1日休むと連続は0から。</p>
+    <div class="paybox">
+      <div><div class="label">まだ渡していない分</div><b class="disp num" id="payNow" style="font-size:22px">0円</b></div>
+      <button class="btn pri" type="button" id="payBtn">渡した</button>
+    </div>
+    <div class="field"><label for="twoBall">ボールが2個ある</label><input id="twoBall" type="checkbox"></div>
+    <p class="hint">オンにすると、2ボールドリブルが日替わりメニューに入ります。</p>
+    <div class="field"><label for="sndOn">音を鳴らす</label><input id="sndOn" type="checkbox"></div>
+    <div class="field"><label for="voiceOn">ドリブーがしゃべる</label><input id="voiceOn" type="checkbox"></div>
+    <div class="field" id="ttsRow" hidden><label for="ttsVoice">声の種類</label><select id="ttsVoice"><option value="airy">かるい声</option><option value="rounded">まるい声</option><option value="buttery">やわらかい声</option><option value="glassy">すんだ声</option></select></div>
+    <div class="field"><label for="zundaSel">ドリブーの声</label><select id="zundaSel"><option value="1">ずんだもん</option><option value="0">端末の読み上げ</option></select></div>
+    <div class="field" id="jaRow" hidden><label for="jaVoice">読み上げの声</label><select id="jaVoice"></select></div>
+    <p class="hint" id="voiceHint"></p>
+    <button class="btn" type="button" id="voiceTest">声をためしに聞く</button>
+    <div class="sect">ドリブーの声を録音する</div>
+    <p class="hint" style="margin:0">機械の声のかわりに、おうちの人（またはお子さん本人）の声でドリブーがしゃべります。録音したセリフは、録音していないものより優先されます。録音はこのスマホの中だけに保存されます。</p>
+    <div class="rec" id="recList"></div>
+    <input type="file" id="recFile" accept="audio/*" hidden>
+    <div class="field"><label for="fzOn">おやすみチケットを使う</label><input id="fzOn" type="checkbox"></div>
+    <p class="hint">1日休んでも、チケットが1枚あれば連続記録が切れません（休んだ日は日数に数えません）。7日続けるごとに1枚もらえて、持てるのは2枚まで。</p>
+    <div class="confirm" id="resetArea">
+      <button class="btn danger" type="button" id="resetBtn">記録をぜんぶ消す</button>
+    </div>
+    <div class="store" id="storeNote"></div>
+    <button class="btn" value="close">閉じる</button>
+  </form>
+</dialog>
+
+<script>
+(() => {
+/* ---------- drills ---------- */
+const BASE = [
+  {id:0, n:"右手ドリブル", t:"ひざを曲げて低く。ボールを床に強く押しこむ"},
+  {id:1, n:"左手ドリブル", t:"苦手な手こそ強く。ボールを見ないで前を見る"},
+  {id:2, n:"フロントチェンジ", t:"体の前で左右に、低く速く切りかえる"}
+];
+const POOL = [
+  {id:3, n:"レッグスルー", t:"足を前後に開いて股の下を通す。左右交互に"},
+  {id:4, n:"バックチェンジ", t:"背中側でボールを左右に移す。腰の後ろで強くつく"},
+  {id:5, n:"インサイドアウト（右）", t:"内側に行くふりをして、同じ手で外へ戻す"},
+  {id:6, n:"インサイドアウト（左）", t:"内側に行くふりをして、同じ手で外へ戻す"},
+  {id:7, n:"Vドリブル（右）", t:"体の横でV字を描くように前後に振る"},
+  {id:8, n:"Vドリブル（左）", t:"体の横でV字を描くように前後に振る"},
+  {id:9, n:"8の字ドリブル", t:"両足のまわりを8の字に回す。低い姿勢のまま"},
+  {id:10, n:"ボール回し", t:"腰・ひざ・首のまわりで回す。止めずに速く"},
+  {id:11, n:"ハイ・ロードリブル", t:"高く3回、低く3回をくり返す"},
+  {id:12, n:"座ってドリブル", t:"床に座って体のまわりでつく。指先でコントロール"},
+  {id:13, n:"パウンドドリブル", t:"右15秒→左15秒。思い切り強く、腰の高さまで"},
+  {id:14, n:"レッグスルー→バックチェンジ", t:"2つの技を続けて。ゆっくりでいいので正確に"},
+  {id:15, n:"指先タップ", t:"両手の指先でボールを素早くはじき合う"},
+  {id:16, n:"2ボール同時", t:"2個を同時につく。高さをそろえる", two:true},
+  {id:17, n:"2ボール交互", t:"右と左を交互につく。リズムよく", two:true}
+];
+const QUIZ = {n:"顔上げドリブル（計算クイズ）", t:"顔を上げてドリブルしながら、ドリブーの問題に声で答えよう。画面は見ないでOK", quiz:true};
+const DRILL_SEC = 30, REST_SEC = 10, READY_SEC = 5;
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2,"0");
+const keyOf = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const parseKey = k => { const [y,m,dd]=k.split("-").map(Number); return new Date(y,m-1,dd); };
+const today = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
+
+function rng(seedStr){ let h=1779033703^seedStr.length; for(let i=0;i<seedStr.length;i++){h=Math.imul(h^seedStr.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  let a=h>>>0; return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}; }
+function menuFor(k){
+  const pool = POOL.filter(p => state.twoBalls || !p.two);
+  const r = rng("dribble-"+k), arr = pool.slice();
+  for(let i=arr.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}
+  return BASE.map(d=>({...d,base:true})).concat(arr.slice(0,3), [QUIZ]);
+}
+
+/* ---------- state + storage ---------- */
+const DEFAULTS = {days:{}, paid:0, rewardDays:7, rewardYen:100, twoBalls:false, sound:true, voice:true, zunda:true, voiceName:"", xp:0, tickets:1, frozen:{}, freezeOn:true, ttsVoice:"airy"};
+let state = {...DEFAULTS};
+let ref = null, storeMode = "local", writing = Promise.resolve();
+const LS = "maidori-v1";
+try { const s = JSON.parse(localStorage.getItem(LS)||"null"); if(s) state = {...DEFAULTS, ...s}; } catch(e){}
+
+function save(){
+  try { localStorage.setItem(LS, JSON.stringify(state)); } catch(e){}
+  if(ref){
+    const body = JSON.parse(JSON.stringify(state));
+    writing = writing.then(() => ref.set(body)).catch(e => {
+      if(e && e.code === "invalid_argument"){ ref = null; storeMode = "local"; renderStore(); }
+    });
+  }
+}
+async function initStore(){
+  if(!window.claude || !window.claude.use) return;
+  try{
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    if(!db || !user) return;
+    const id = await user.id(); if(!id) return;
+    ref = db.doc("data/users/"+id+"/progress"); storeMode = "cloud"; renderStore();
+    let first = true;
+    ref.onSnapshot(snap => {
+      if(snap.exists){ state = {...DEFAULTS, ...snap.data(), days:{...(snap.data().days||{})}}; try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){} render(); }
+      else if(first && !snap.metadata.fromCache && Object.keys(state.days).length){ save(); }
+      if(!snap.metadata.fromCache) first = false;
+    }, () => { ref = null; storeMode = "local"; renderStore(); });
+  }catch(e){}
+}
+
+/* ---------- derived numbers ---------- */
+const isDone = k => state.days[k] > 0, isFz = k => !!(state.frozen && state.frozen[k]);
+function linked(prev, d){ if(!prev) return false; const gap = Math.round((d-prev)/864e5); if(gap===1) return true;
+  for(let i=1;i<gap;i++) if(!isFz(keyOf(addDays(prev,i)))) return false; return gap>1; }
+const RANKS = ["ルーキー","ハンドラー","ベンチ入り","スタメン","エース","キャプテン","レジェンド"];
+const BAND = ["#2445C9","#17925A","#7A3FD1","#D12B2B","#1B1B1B","#1B1B1B","#C9961A"];
+let curRi = 0;
+const LV_AT = n => 40*n*(n-1)/2;
+function levelInfo(xp){ let lv=1; while(xp >= LV_AT(lv+1)) lv++; const a=LV_AT(lv), b=LV_AT(lv+1);
+  const ri = lv>=18?6: lv>=14?5: lv>=10?4: lv>=7?3: lv>=5?2: lv>=3?1:0;
+  return {lv, into:xp-a, need:b-a, ri, rank:RANKS[ri]}; }
+const BADGES = [3,7,14,30,60].map(n=>({n, label:n+"日連続", ok:s=>s.best>=n}))
+  .concat([5,10,30,50,100].map(n=>({n, label:"合計"+n+"日", tot:true, ok:s=>s.total>=n})));
+function stats(){
+  const keys = Object.keys(state.days).filter(k=>state.days[k]>0).sort();
+  let best=0, run=0, prev=null, earned=0;
+  const N = Math.max(1, state.rewardDays|0), Y = Math.max(0, +state.rewardYen||0);
+  for(const k of keys){
+    const d = parseKey(k);
+    run = linked(prev,d) ? run+1 : 1;
+    if(run % N === 0) earned += Y;
+    best = Math.max(best, run); prev = d;
+  }
+  const tk = keyOf(today()); let d = isDone(tk) ? today() : addDays(today(),-1), pending = [];
+  if(!isDone(tk) && state.freezeOn !== false){
+    let x = d; const tmp = [];
+    while(!isDone(keyOf(x)) && !isFz(keyOf(x)) && tmp.length < (state.tickets|0)){ tmp.push(keyOf(x)); x = addDays(x,-1); }
+    if(tmp.length && (isDone(keyOf(x)) || isFz(keyOf(x)))){ pending = tmp; d = x; }
+  }
+  let cur = 0; while(isDone(keyOf(d)) || isFz(keyOf(d))){ if(isDone(keyOf(d))) cur++; d = addDays(d,-1); }
+  if(cur === 0) pending = [];
+  const doneToday = !!state.days[keyOf(today())];
+  return {best:Math.max(best,cur), cur, pending, lvl:levelInfo(+state.xp||0), total:keys.length, earned, unpaid:Math.max(0, earned-(+state.paid||0)), doneToday, N, Y};
+}
+
+/* ---------- render home ---------- */
+const $ = id => document.getElementById(id);
+const WD = ["日","月","火","水","木","金","土"];
+const CHECK = '<svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function render(){
+  const s = stats(), t = today();
+  $("streakN").textContent = s.cur;
+  $("streakSub").textContent = s.doneToday ? "今日もクリア！明日も続けよう"
+    : s.cur > 0 ? "今日やれば "+(s.cur+1)+"日れんぞく！" : "今日の5分で記録スタート！";
+  // week Mon..Sun
+  const mon = addDays(t, -((t.getDay()+6)%7));
+  $("week").innerHTML = Array.from({length:7},(_,i)=>{
+    const d = addDays(mon,i), k = keyOf(d), done = state.days[k]>0, isT = k===keyOf(t);
+    return '<div class="day"><div class="dot'+(done?' done':'')+(isT?' today':'')+'">'+(done?CHECK:'')+'</div>'+WD[d.getDay()]+'</div>';
+  }).join("");
+  // reward
+  const inCycle = s.cur % s.N, filled = s.doneToday || s.cur ? (inCycle===0 && s.cur>0 ? s.N : inCycle) : 0;
+  const left = s.N - (s.cur % s.N);
+  $("rewardLeft").textContent = (s.cur>0 && s.cur % s.N===0) ? "達成！次の"+s.N+"日へ" : "あと"+left+"日";
+  const bar = $("rewardBar"); bar.style.gridTemplateColumns = "repeat("+s.N+",1fr)";
+  bar.innerHTML = Array.from({length:s.N},(_,i)=>'<span class="'+(i<filled?'on':'')+'"></span>').join("");
+  $("rewardRule").textContent = s.N+"日れんぞくで "+s.Y.toLocaleString()+"円";
+  $("unpaid").textContent = s.unpaid.toLocaleString()+"円";
+  $("doneBanner").hidden = !s.doneToday;
+  $("start").textContent = s.doneToday ? "もう1回やる" : "練習スタート";
+  $("sBest").textContent = s.best; $("sTotal").textContent = s.total; $("sEarn").textContent = (+state.paid||0).toLocaleString();
+  // menu
+  const m = menuFor(keyOf(t));
+  $("menuTitle").textContent = "今日のメニュー（"+(t.getMonth()+1)+"/"+t.getDate()+" "+WD[t.getDay()]+"）";
+  $("drills").innerHTML = m.map((d,i)=>'<li><span class="ix">'+(i+1)+'</span><span class="dname">'+d.n+'<span class="dtip">'+d.t+'</span></span><span class="tag '+(d.quiz?'quiz':d.base?'base':'new')+'">'+(d.quiz?'頭も':d.base?'毎日':'日替わり')+'</span></li>').join("");
+  // level, tickets, badges
+  curRi = s.lvl.ri;
+  const tkN = state.tickets|0;
+  $("tickets").innerHTML = state.freezeOn === false ? "" : 'おやすみチケット <span class="tk'+(tkN>=1?' on':'')+'"></span><span class="tk'+(tkN>=2?' on':'')+'"></span>'
+    + (s.pending.length && !s.doneToday ? '<span>今日やれば連続キープ</span>' : '');
+  $("rank").textContent = s.lvl.rank; $("lv").textContent = "Lv"+s.lvl.lv;
+  $("xpTxt").textContent = s.lvl.into+" / "+s.lvl.need+" XP";
+  $("xpFill").style.width = Math.round(100*s.lvl.into/s.lvl.need)+"%";
+  $("xpNext").textContent = "あと"+(s.lvl.need-s.lvl.into)+" XPでLv"+(s.lvl.lv+1)+"。1回の練習で20 XP以上もらえる";
+  $("badgeCount").textContent = BADGES.filter(b=>b.ok(s)).length+" / "+BADGES.length;
+  $("badges").innerHTML = BADGES.map(b=>'<div class="badge'+(b.ok(s)?' got':'')+(b.tot?' tot':'')+'"><div class="medal num">'+b.n+'</div>'+b.label+'</div>').join("");
+  // calendar: 5 weeks ending this week
+  const start = addDays(mon, -28);
+  let ch = WD.slice(1).concat(WD[0]).map(w=>'<div class="wd">'+w+'</div>').join("");
+  for(let i=0;i<35;i++){ const d = addDays(start,i), k = keyOf(d), fut = d > t;
+    ch += '<div class="c'+(isDone(k)?' done':isFz(k)?' fz':'')+(k===keyOf(t)?' today':'')+(fut?' fut':'')+'">'+d.getDate()+'</div>'; }
+  $("cal").innerHTML = ch;
+  // ドリブー
+  const hl = homeLine(s);
+  setDori($("homeDori"), hl.mood, hl.anim); $("homeSay").textContent = hl.text;
+  // settings fields
+  $("payNow").textContent = s.unpaid.toLocaleString()+"円";
+  $("mute").textContent = state.sound ? "音 ON" : "音 OFF";
+}
+function renderStore(){
+  $("storeNote").textContent = storeMode==="cloud"
+    ? "記録はあなたのClaudeアカウントに保存されます（同じアカウントなら別の端末でも続きから）。"
+    : "記録はこの端末のブラウザに保存されます。";
+}
+
+/* ---------- ドリブー ---------- */
+const DK = "#2A1206";
+function doribuSVG(mood){
+  const up = mood==="cheer" || mood==="wow";
+  const arms = up
+    ? '<path d="M17 50 L5 24 M83 50 L95 24" stroke="'+DK+'" stroke-width="5" stroke-linecap="round"/><circle cx="5" cy="21" r="7" fill="#fff" stroke="'+DK+'" stroke-width="3"/><circle cx="95" cy="21" r="7" fill="#fff" stroke="'+DK+'" stroke-width="3"/>'
+    : '<path d="M15 60 L5 74 M85 60 L95 74" stroke="'+DK+'" stroke-width="5" stroke-linecap="round"/><circle cx="5" cy="76" r="7" fill="#fff" stroke="'+DK+'" stroke-width="3"/><circle cx="95" cy="76" r="7" fill="#fff" stroke="'+DK+'" stroke-width="3"/>';
+  const sad = mood==="sad";
+  const brows = sad
+    ? '<path d="M29 35 L42 40 M71 35 L58 40" stroke="'+DK+'" stroke-width="3.5" stroke-linecap="round"/>'
+    : '<path d="M29 37 Q35 31 42 35 M58 35 Q65 31 71 37" stroke="'+DK+'" stroke-width="3.5" fill="none" stroke-linecap="round"/>';
+  const py = sad ? 52 : 48;
+  const eyes = mood==="wow"
+    ? '<ellipse cx="37" cy="47" rx="8" ry="9.5" fill="#fff" stroke="'+DK+'" stroke-width="2.5"/><ellipse cx="63" cy="47" rx="8" ry="9.5" fill="#fff" stroke="'+DK+'" stroke-width="2.5"/><circle cx="37" cy="48" r="3.4" fill="'+DK+'"/><circle cx="63" cy="48" r="3.4" fill="'+DK+'"/>'
+    : '<ellipse cx="37" cy="48" rx="7" ry="8.5" fill="#fff" stroke="'+DK+'" stroke-width="2.5"/><ellipse cx="63" cy="48" rx="7" ry="8.5" fill="#fff" stroke="'+DK+'" stroke-width="2.5"/><circle cx="38" cy="'+py+'" r="4" fill="'+DK+'"/><circle cx="62" cy="'+py+'" r="4" fill="'+DK+'"/><circle cx="39.5" cy="'+(py-1.6)+'" r="1.3" fill="#fff"/><circle cx="63.5" cy="'+(py-1.6)+'" r="1.3" fill="#fff"/>';
+  const mouth = sad
+    ? '<path d="M41 72 Q50 64 59 72" stroke="'+DK+'" stroke-width="3.5" fill="none" stroke-linecap="round"/><path d="M80 30 Q84 37 80 40 Q76 37 80 30Z" fill="#7CC4FF"/>'
+    : mood==="wow"
+    ? '<ellipse cx="50" cy="70" rx="7" ry="8.5" fill="'+DK+'"/><ellipse cx="50" cy="74" rx="4" ry="3" fill="#FF8FA3"/>'
+    : '<path d="M36 63 Q50 84 64 63 Z" fill="'+DK+'" stroke="'+DK+'" stroke-width="2" stroke-linejoin="round"/><path d="M43 72 Q50 79 57 72 Q50 69 43 72Z" fill="#FF8FA3"/>';
+  const crown = curRi >= 4 ? '<path d="M33 17 L36 3 L45 12 L50 0 L55 12 L64 3 L67 17Z" fill="#FFD23F" stroke="'+DK+'" stroke-width="2.5" stroke-linejoin="round"/>' : '';
+  return '<svg viewBox="-4 -4 108 120" aria-hidden="true">'
+    + '<path d="M40 88 L37 102 M60 88 L63 102" stroke="'+DK+'" stroke-width="5" stroke-linecap="round"/>'
+    + '<ellipse cx="33" cy="105" rx="10" ry="5.5" fill="#fff" stroke="'+DK+'" stroke-width="3"/><ellipse cx="67" cy="105" rx="10" ry="5.5" fill="#fff" stroke="'+DK+'" stroke-width="3"/>'
+    + arms
+    + '<circle cx="50" cy="52" r="38" fill="#F26A21" stroke="'+DK+'" stroke-width="3"/>'
+    + '<path d="M21 27 Q33 52 21 77 M79 27 Q67 52 79 77" stroke="'+DK+'" stroke-width="2.2" fill="none" opacity=".4"/>'
+    + '<path d="M15 33 Q50 15 85 33 L83 41 Q50 24 17 41Z" fill="'+BAND[curRi]+'" stroke="'+DK+'" stroke-width="2.5" stroke-linejoin="round"/>' + crown
+    + '<circle cx="25" cy="62" r="5" fill="#FF8FA3" opacity=".6"/><circle cx="75" cy="62" r="5" fill="#FF8FA3" opacity=".6"/>'
+    + brows + eyes + mouth + '</svg>';
+}
+const ANIMS = ["m-hop","m-dribble","m-sway","m-droop","m-jump","m-party"];
+function setDori(el, mood, anim){
+  const k = mood+"|"+anim+"|"+curRi; if(el.dataset.k === k) return; el.dataset.k = k;
+  el.innerHTML = doribuSVG(mood); el.classList.remove(...ANIMS); if(anim) el.classList.add(anim);
+}
+const pick = a => a[Math.floor(Math.random()*a.length)];
+function bubble(el, text){ el.textContent = text; el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+
+function homeLine(s){
+  if(s.pending.length && !s.doneToday) return {v:"home_ticket", mood:"happy", anim:"m-hop", text:"休んだ日は、おやすみチケットで連続を守っとくで！今日やったら"+(s.cur+1)+"日や。いこか！"};
+  if(s.doneToday) return {v:"home_done", mood:"cheer", anim:"m-hop", text:"今日もナイスや！"+s.cur+"日れんぞくやで。明日も待っとるで！"};
+  if(s.cur > 0) return {v:"home_streak", mood:"happy", anim:"m-hop", text:s.cur+"日続いとるで！今日もやったら"+(s.cur+1)+"日や。いこか！"};
+  if(s.total > 0) return {v:"home_sad", mood:"sad", anim:"m-droop", text:"昨日おらんかったやん…さみしかったで。今日からまた一緒にいこな。"};
+  return {v:"home_new", mood:"happy", anim:"m-hop", text:"はじめまして！ぼくドリブーや。毎日5分、一緒にうまなろな！"};
+}
+
+/* 声（端末の読み上げ） */
+let jaVoice = null;
+const vScore = v => (/enhanced|premium|natural|neural|拡張|プレミアム|siri|google/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
+let jaList = [];
+function pickVoice(){ try{
+  jaList = speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang)).sort((a,b)=>vScore(b)-vScore(a));
+  jaVoice = jaList.find(v=>v.name===state.voiceName) || jaList[0] || null;
+  if(typeof renderVoiceUI === "function") try{ renderVoiceUI(); }catch(e){}
+}catch(e){} }
+const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+if(canSpeak){ pickVoice(); try{ speechSynthesis.onvoiceschanged = pickVoice; }catch(e){} }
+let ttsNS = null;   // Claudeの自然な声（使える環境だけ）
+if(window.claude && window.claude.use){ claude.use("tts").then(t => { ttsNS = t; renderVoiceUI(); }).catch(()=>{}); }
+function renderVoiceUI(){
+  $("ttsRow").hidden = !ttsNS;
+  $("jaRow").hidden = !!ttsNS || jaList.length < 2;
+  if(!ttsNS && jaList.length){
+    $("jaVoice").innerHTML = jaList.map(v=>'<option value="'+v.name.replace(/"/g,"&quot;")+'">'+v.name.replace(/</g,"&lt;")+'</option>').join("");
+    if(jaVoice) $("jaVoice").value = jaVoice.name;
+  }
+  $("voiceHint").textContent = ttsNS ? "自然な声でしゃべります。声の種類を選べます。"
+    : "ずんだもんの声は、決まったセリフと計算問題で使います。端末の読み上げにした場合は、下の「読み上げの声」で声の種類を選べます。";
+}
+function deviceSpeak(clean){
+  if(!canSpeak) return;
+  try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(clean);
+    u.lang = "ja-JP"; if(jaVoice) u.voice = jaVoice; u.rate = 1.08; u.pitch = 1.2; u.volume = 1; speechSynthesis.speak(u); }catch(e){}
+}
+/* ずんだもんの音声ファイル（voice/ID.mp3） */
+const VOX = {}; let voxSeq = 0;
+const PACKS = {};
+function pack(name){ if(!PACKS[name]) PACKS[name] = fetch("voice/"+name+".json").then(r => { if(!r.ok) throw 0; return r.json(); }).catch(() => (PACKS[name] = null, {})); return PACKS[name]; }
+function voxLoad(id){
+  if(VOX[id]) return VOX[id]; const a = audio(); if(!a) return Promise.resolve(null);
+  VOX[id] = pack(id.startsWith("q_") ? "quiz" : "core").then(pk => {
+      const b64 = pk && pk[id]; if(!b64) return null;
+      const bin = atob(b64), u = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
+      return new Promise((res,rej) => { const p = a.decodeAudioData(u.buffer, res, rej); if(p && p.then) p.then(res, rej); });
+    }).catch(() => null);
+  return VOX[id];
+}
+function playBuf(b){ const a = audio(); stopSpeakSynth(); stopClip(); const src = a.createBufferSource(), g = a.createGain(); g.gain.value = 1;
+  src.buffer = b; src.connect(g); g.connect(master); src.start(); clipSrc = src; }
+function speak(text, cue, vid){
+  if(!state.voice) return;
+  const my = ++voxSeq;
+  if(cue && playClip(cue)) return;
+  if(vid && state.zunda !== false){
+    voxLoad(vid).then(b => { if(my !== voxSeq) return; if(b) playBuf(b); else synthSpeak(text); });
+    return;
+  }
+  synthSpeak(text);
+}
+function synthSpeak(text){
+  stopClip();
+  const clean = text.replace(/（(.+?)）/g,"、$1").replace(/→/g,"から");
+  if(ttsNS){
+    try{ ttsNS.speak(clean, {voice: state.ttsVoice || "airy", rate: 1.1, language: "ja"}).catch(e => {
+      const c = e && e.code;
+      if(c === "not_granted" || c === "revoked"){ ttsNS = null; renderVoiceUI(); deviceSpeak(clean); }
+      else if(c === "rate_limited") deviceSpeak(clean);
+    }); }catch(e){ deviceSpeak(clean); }
+    return;
+  }
+  deviceSpeak(clean);
+}
+function deviceOrTts(text){ if(ttsNS){ try{ ttsNS.speak(text,{voice:state.ttsVoice||"airy",rate:1.15,language:"ja"}).catch(()=>deviceSpeak(text)); }catch(e){ deviceSpeak(text); } } else deviceSpeak(text); }
+function stopSpeak(){
+  voxSeq++; stopClip();
+  try{ const r = ttsNS && ttsNS.stop(); r && r.catch && r.catch(()=>{}); }catch(e){}
+  try{ canSpeak && speechSynthesis.cancel(); }catch(e){}
+}
+const say = (el, text, cue, vid) => { bubble(el, text); speak(text, cue, vid); };
+$("homeDori").onclick = () => { audio(); const s = stats(), hl = homeLine(s); say($("homeSay"), hl.text, "home", hl.v); sfx.tap(); };
+
+/* 録音した声（このスマホのIndexedDBに保存） */
+const CUES = [
+  {k:"home",  t:"今日もやろか！待っとるで！", w:"ホームでドリブーをタップしたとき"},
+  {k:"ready", t:"準備はええか？ボール持って、かまえてや！", w:"練習のはじめ"},
+  {k:"go",    t:"いくで！", w:"種目のスタート"},
+  {k:"final", t:"ラストの種目や！いくで！", w:"最後の種目のスタート"},
+  {k:"mid",   t:"ええ感じや！そのまま！", w:"種目のまんなか"},
+  {k:"ten",   t:"あと10秒、いけるで！", w:"残り10秒"},
+  {k:"rest",  t:"ナイスや！ちょっと休憩や", w:"休けい"},
+  {k:"quiz",  t:"顔上げて！問題いくで！", w:"計算クイズのはじめ"},
+  {k:"clear", t:"ナイスや！今日もクリアやで！", w:"練習クリア"},
+  {k:"reward",t:"お小遣いゲットや！ほんまにすごいで！", w:"お小遣いがもらえた日"}
+];
+const clipBuf = {}; let clipSrc = null;
+function idb(){ return new Promise((res,rej)=>{ try{ const r = indexedDB.open("maidori-voice",1);
+  r.onupgradeneeded = () => r.result.createObjectStore("clips"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }); }
+async function idbDo(mode, fn){ const db = await idb(); return new Promise((res,rej)=>{ const tx = db.transaction("clips",mode), st = tx.objectStore("clips");
+  const r = fn(st); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); }); }
+async function decodeClip(k, blob){ const a = audio(); if(!a || !blob) return;
+  try{ const buf = await blob.arrayBuffer(); clipBuf[k] = await new Promise((res,rej)=>{ const p = a.decodeAudioData(buf, res, rej); if(p && p.then) p.then(res,rej); }); }catch(e){ delete clipBuf[k]; } }
+async function loadClips(){ try{ for(const c of CUES){ const b = await idbDo("readonly", st => st.get(c.k)); if(b) await decodeClip(c.k, b); } }catch(e){} renderRec(); }
+function stopClip(){ try{ clipSrc && clipSrc.stop(); }catch(e){} clipSrc = null; }
+function playClip(k){ const b = clipBuf[k]; if(!b) return false; const a = audio(); if(!a) return false;
+  voxSeq++; stopSpeakSynth(); stopClip(); const src = a.createBufferSource(), g = a.createGain(); g.gain.value = .9;
+  src.buffer = b; src.connect(g); g.connect(master); src.start(); clipSrc = src; return true; }
+function stopSpeakSynth(){ try{ canSpeak && speechSynthesis.cancel(); }catch(e){} try{ const r = ttsNS && ttsNS.stop(); r && r.catch && r.catch(()=>{}); }catch(e){} }
+let recState = null;
+function renderRec(){
+  $("recList").innerHTML = CUES.map(c => '<div class="recrow'+(clipBuf[c.k]?' has':'')+'"><div class="t">「'+c.t+'」<small>'+c.w+'</small></div><div class="b">'
+    + '<button class="btn'+(recState&&recState.k===c.k?' recing':'')+'" type="button" data-rec="'+c.k+'">'+(recState&&recState.k===c.k?'止める':'録音')+'</button>'
+    + '<button class="btn" type="button" data-file="'+c.k+'">ファイル</button>'
+    + (clipBuf[c.k] ? '<button class="btn" type="button" data-play="'+c.k+'">再生</button><button class="btn danger" type="button" data-del="'+c.k+'">消す</button>' : '')
+    + '</div></div>').join("") + '<p class="hint" id="recMsg" style="margin:0"></p>';
+}
+async function storeClip(k, blob){ try{ await idbDo("readwrite", st => st.put(blob, k)); }catch(e){} await decodeClip(k, blob); renderRec();
+  if(!clipBuf[k]) $("recMsg").textContent = "この音声ファイルは読みこめませんでした。別の形式で試してください。"; else playClip(k); }
+$("recList").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if(!b) return; audio();
+  if(b.dataset.play) playClip(b.dataset.play);
+  if(b.dataset.del){ try{ await idbDo("readwrite", st => st.delete(b.dataset.del)); }catch(e){} delete clipBuf[b.dataset.del]; renderRec(); }
+  if(b.dataset.file){ $("recFile").dataset.k = b.dataset.file; $("recFile").click(); }
+  if(b.dataset.rec){
+    const k = b.dataset.rec;
+    if(recState){ const same = recState.k === k; try{ recState.mr.stop(); }catch(e){} if(same) return; }
+    try{
+      const ms = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true, noiseSuppression:true}});
+      const mr = new MediaRecorder(ms), parts = [];
+      mr.ondataavailable = ev => ev.data && ev.data.size && parts.push(ev.data);
+      mr.onstop = () => { ms.getTracks().forEach(t=>t.stop()); clearTimeout(recState && recState.to); recState = null; renderRec();
+        if(parts.length) storeClip(k, new Blob(parts, {type: mr.mimeType || "audio/webm"})); };
+      recState = {k, mr, to: setTimeout(()=>{ try{ mr.stop(); }catch(e){} }, 8000)};
+      mr.start(); renderRec(); $("recMsg").textContent = "録音中…言い終わったら「止める」（8秒で自動で止まります）";
+    }catch(err){ recState = null; renderRec();
+      $("recMsg").textContent = "このページではマイクが使えません。スマホのボイスメモで録音して「ファイル」から選んでください。"; }
+  }
+});
+$("recFile").onchange = e => { const f = e.target.files && e.target.files[0], k = e.target.dataset.k; e.target.value = ""; if(f && k) storeClip(k, f); };
+$("jaVoice").onchange = e => { state.voiceName = e.target.value; save(); pickVoice(); speak("ナイスや！この声でいこか！"); };
+$("zundaSel").onchange = e => { state.zunda = e.target.value === "1"; save(); audio(); speak("ナイスや！この声でいこか！", null, state.zunda ? "test" : null); };
+$("voiceTest").onclick = () => { audio(); const was = state.voice; state.voice = true; speak("ナイスや！あと10秒、いけるで！", "ten", "test"); state.voice = was; };
+
+/* 計算クイズ */
+function makeQ(lv){
+  const R = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+  let a, b, op;
+  if(lv <= 3){ a = R(1,9); b = R(1,10-a); op = "+"; }
+  else if(lv <= 6){ if(Math.random()<.5){ a = R(2,12); b = R(1,9); op = "+"; } else { a = R(5,18); b = R(1,Math.min(9,a-1)); op = "−"; } }
+  else if(lv <= 10){ if(Math.random()<.5){ a = R(2,9); b = R(2,9); op = "×"; } else if(Math.random()<.5){ a = R(6,12); b = R(2,9); op = "+"; } else { a = R(10,18); b = R(2,9); op = "−"; } }
+  else { const r = Math.random(); if(r<.6){ a = R(3,9); b = R(3,9); op = "×"; } else if(r<.8){ a = R(6,12); b = R(4,9); op = "+"; } else { a = R(11,18); b = R(3,9); op = "−"; } }
+  const ans = op==="+" ? a+b : op==="−" ? a-b : a*b;
+  const word = {"+":"たす","−":"ひく","×":"かける"}[op];
+  return {txt:a+" "+op+" "+b, ans, say:a+word+b+"は？", v:"q_"+a+({"+":"p","−":"m","×":"x"}[op])+b};
+}
+const quizGap = lv => lv <= 3 ? 6 : lv <= 6 ? 5 : lv <= 10 ? 4 : 3;
+let qz = null;
+
+/* ---------- sound (大きめ・ピロリン系) ---------- */
+let ac = null, master = null;
+function audio(){
+  if(!ac){ try{
+    ac = new (window.AudioContext||window.webkitAudioContext)();
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -12; comp.knee.value = 6; comp.ratio.value = 6;
+    master = ac.createGain(); master.gain.value = 2.2; master.connect(comp); comp.connect(ac.destination);
+  }catch(e){} }
+  if(ac && ac.state==="suspended") ac.resume(); return ac;
+}
+function tone(f, dur=.12, when=0, type="sine", vol=.4){
+  if(!state.sound) return; const a = audio(); if(!a) return;
+  const o = a.createOscillator(), g = a.createGain(), t0 = a.currentTime+when;
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol,t0+.008); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g); g.connect(master); o.start(t0); o.stop(t0+dur+.02);
+}
+const sfx = {
+  tap:  () => tone(880,.07,0,"sine",.35),
+  chest: () => { [784,988,1175,1568].forEach((f,i)=>tone(f,.12,i*.06,"sine",.45)); tone(2093,.45,.26,"triangle",.3); },
+  tick: () => { tone(1046,.11,0,"sine",.5); tone(2093,.06,0,"triangle",.12); },
+  go:   () => { tone(1047,.09,0,"sine",.45); tone(1319,.09,.07,"sine",.45); tone(1568,.26,.14,"sine",.5); tone(3136,.2,.14,"triangle",.08); },
+  rest: () => { tone(784,.13,0,"triangle",.45); tone(1175,.32,.11,"sine",.5); },
+  win:  () => { [523,659,784,1047].forEach((f,i)=>tone(f,.15,i*.1,"square",.22));
+                [1047,1319,1568].forEach(f=>tone(f,.8,.42,"triangle",.32)); tone(2093,.8,.42,"sine",.22); },
+  coin: () => { tone(988,.08,1.35,"square",.28); tone(1319,.45,1.43,"square",.28); }
+};
+const CHEER_MID = ["ええ感じや！そのまま！","そのまま、そのまま！","低く、強くやで！","うまなってきとるで！"];
+const CHEER_10 = ["あと10秒、いけるで！","あと10秒！がんばれ！","ラスト10秒、ふんばりや！"];
+const REST = ["ナイスや！","ええやん！","さすがや！","バッチリや！"];
+
+/* ---------- workout ---------- */
+let wLv = 1, phases = [], pi = 0, endAt = 0, remainMs = 0, paused = false, raf = 0, lastSec = -1, wake = null, menu = [];
+const C = 2*Math.PI*52;
+
+function buildPhases(){
+  menu = menuFor(keyOf(today())); phases = [{type:"ready", sec:READY_SEC}];
+  menu.forEach((d,i)=>{ phases.push({type:"drill", i, sec:DRILL_SEC}); if(i<menu.length-1) phases.push({type:"rest", i:i+1, sec:REST_SEC}); });
+}
+function startWorkout(){
+  audio(); buildPhases(); pi = 0; paused = false; wLv = stats().lvl.lv;
+  if(state.zunda !== false){ ["ready","quiz","rest_q","mid","mid2","mid3","mid4","ten","ten2","ten3","clear","clear_first","clear2","clear4","clear7","clear14","again","rankup","reward","jackpot"].forEach(voxLoad);
+    menu.forEach(d => { if(d.id != null){ voxLoad("go_"+d.id); voxLoad("final_"+d.id); voxLoad("rest_"+d.id); } }); pack("quiz"); }
+  $("prog").innerHTML = menu.map(()=>"<i></i>").join("");
+  $("work").hidden = false; document.body.style.overflow = "hidden";
+  try{ navigator.wakeLock && navigator.wakeLock.request("screen").then(w=>wake=w).catch(()=>{}); }catch(e){}
+  enterPhase();
+}
+function enterPhase(){
+  const p = phases[pi]; endAt = performance.now() + p.sec*1000; lastSec = -1;
+  const w = $("work"); w.classList.toggle("rest", p.type!=="drill");
+  const d = menu[p.i ?? 0];
+  const wd = $("wDori"), ws = $("wSay"); qz = null; $("wName").classList.remove("q");
+  try{ navigator.vibrate && navigator.vibrate(p.type==="drill" ? 120 : 40); }catch(e){}
+  if(p.type==="ready"){ $("wPhase").textContent="じゅんび"; $("wName").textContent=menu[0].n; $("wTip").textContent=menu[0].t; $("wNext").innerHTML="ボールを持ってかまえよう";
+    setDori(wd,"happy","m-hop"); say(ws,"準備はええか？ボール持って、かまえてや！","ready","ready"); }
+  if(p.type==="drill"){ $("wPhase").textContent=(p.i+1)+" / "+menu.length; $("wName").textContent=d.n; $("wTip").textContent=d.t;
+    const nx = menu[p.i+1]; $("wNext").innerHTML = nx ? "次：<b>"+nx.n+"</b>" : "これでラスト！"; sfx.go();
+    setDori(wd,"cheer","m-dribble");
+    if(d.quiz){ qz = {gap:quizGap(wLv), n:-1, q:null, shown:false, list:Array.from({length:12}, () => makeQ(wLv))};
+      if(state.zunda !== false) qz.list.forEach(q => voxLoad(q.v));
+      $("wTip").textContent = "Lv"+wLv+"：問題は"+qz.gap+"秒ごと。顔を上げたまま、声に出して答えよう";
+      say(ws, "顔上げて！問題いくで！", "quiz", "quiz"); }
+    else say(ws, nx ? d.n+"、いくで！" : "ラストの種目や！"+d.n+"、いくで！", nx ? "go" : "final", (nx ? "go_" : "final_")+d.id); }
+  if(p.type==="rest"){ $("wPhase").textContent="休けい"; $("wName").textContent="次は "+d.n; $("wTip").textContent=d.t; $("wNext").innerHTML="息をととのえよう"; sfx.rest();
+    setDori(wd,"happy","m-sway"); say(ws, d.quiz ? "ナイスや！次は顔上げドリブルやで" : REST[d.id%4]+"次は"+d.n+"やで", "rest", d.quiz ? "rest_q" : "rest_"+d.id); }
+  [...$("prog").children].forEach((el,i)=>{ const doneUpTo = p.type==="drill"?p.i:(p.type==="rest"?p.i:0);
+    el.className = i<doneUpTo ? "on" : (i===doneUpTo && p.type==="drill" ? "cur" : ""); });
+  cancelAnimationFrame(raf); loop();
+}
+function loop(){
+  if(paused) return;
+  const p = phases[pi], ms = Math.max(0, endAt - performance.now()), sec = Math.ceil(ms/1000);
+  $("wSec").textContent = sec;
+  $("ringVal").setAttribute("stroke-dashoffset", (C*(1 - ms/(p.sec*1000))).toFixed(1));
+  if(sec !== lastSec){
+    if(sec>0 && sec<=3) sfx.tick();
+    if(p.type==="drill" && lastSec !== -1 && !qz){
+      if(sec===15){ const i = Math.floor(Math.random()*CHEER_MID.length); say($("wSay"), CHEER_MID[i], "mid", "mid"+(i?i+1:"")); }
+      if(sec===10){ const i = Math.floor(Math.random()*CHEER_10.length); say($("wSay"), CHEER_10[i], "ten", "ten"+(i?i+1:"")); }
+      if(sec===4){ bubble($("wSay"), "ラストや！3、2、1！"); setDori($("wDori"),"wow","m-dribble"); if(state.zunda !== false) speak("ラストや！", "last3", "last3"); }
+    }
+    lastSec = sec;
+  }
+  if(qz && ms > 0){
+    const el = p.sec - ms/1000 - 2.2;   // 最初の声のあとから出題
+    if(el >= 0){
+      const n = Math.floor(el / qz.gap), into = el - n*qz.gap;
+      if(n !== qz.n && ms/1000 > qz.gap*0.7){ qz.n = n; qz.q = qz.list[n] || makeQ(wLv); qz.shown = false;
+        const w = $("wName"); w.classList.add("q"); w.textContent = qz.q.txt + " ＝ ？"; bubble($("wSay"), qz.q.say);
+        if(state.voice){ if(state.zunda !== false) speak(qz.q.say, null, qz.q.v); else { stopClip(); deviceOrTts(qz.q.say); } } }
+      if(qz.q && !qz.shown && into >= qz.gap*0.62){ qz.shown = true;
+        $("wName").innerHTML = qz.q.txt + ' ＝ <span class="ans">' + qz.q.ans + '</span>'; tone(1568,.08,0,"sine",.25); }
+    }
+  }
+  if(ms <= 0){ next(); return; }
+  raf = requestAnimationFrame(loop);
+}
+function next(){ pi++; if(pi >= phases.length) finishWorkout(); else enterPhase(); }
+function stopWorkout(){ cancelAnimationFrame(raf); stopSpeak(); $("work").hidden = true; document.body.style.overflow=""; try{wake&&wake.release();}catch(e){} wake=null; }
+
+$("pause").onclick = () => {
+  if(!paused){ paused = true; remainMs = endAt - performance.now(); cancelAnimationFrame(raf); $("pause").textContent = "再開"; }
+  else { paused = false; endAt = performance.now() + remainMs; $("pause").textContent = "一時停止"; loop(); }
+};
+$("skip").onclick = () => { if(paused){ paused=false; $("pause").textContent="一時停止"; } cancelAnimationFrame(raf); next(); };
+let quitArm = 0;
+$("quit").onclick = () => {
+  if(Date.now() - quitArm < 3000){ stopWorkout(); $("quit").textContent="やめる"; return; }
+  quitArm = Date.now(); $("quit").textContent = "もう一度で終了";
+  setTimeout(()=>{ $("quit").textContent="やめる"; }, 3000);
+};
+$("mute").onclick = () => { state.sound = !state.sound; save(); render(); };
+$("start").onclick = startWorkout;
+
+function finishWorkout(){
+  stopWorkout();
+  const before = stats(), k = keyOf(today());
+  if(before.pending.length){ const f = {...(state.frozen||{})}; before.pending.forEach(p => f[p] = true); state.frozen = f;
+    state.tickets = Math.max(0, (state.tickets|0) - before.pending.length); }
+  state.days = {...state.days, [k]: (state.days[k]||0) + 1};
+  const s0 = stats(), first = !before.doneToday;
+  const bonus = first ? pick([5,5,10,10,10,15,20,30]) : 0;
+  const gain = first ? 20 + Math.min(10, s0.cur) : 5;
+  const gotTicket = first && s0.cur % 7 === 0 && (state.tickets|0) < 2;
+  if(gotTicket) state.tickets = (state.tickets|0) + 1;
+  state.xp = (+state.xp||0) + gain + bonus; save();
+  const s = stats(); render();
+  const newBadges = BADGES.filter(b => b.ok(s) && !b.ok(before));
+  const lvUp = s.lvl.lv > before.lvl.lv;
+  const gotReward = !before.doneToday && s.cur % s.N === 0 && s.Y > 0;
+  $("fBig").textContent = s.cur + "日れんぞく！";
+  $("fMsg").textContent = before.doneToday ? "今日2回目の練習。その1回が差になる！"
+    : gotReward ? "目標達成！おうちの人に見せよう。"
+    : "お小遣いまで あと" + (s.N - s.cur % s.N) + "日。明日もこの5分をやろう。";
+  $("fEarn").hidden = !gotReward; $("fEarn").textContent = "お小遣い +" + s.Y.toLocaleString() + "円 ゲット！";
+  const c = s.cur;
+  const lv = s.lvl.ri > before.lvl.ri ? "rankup" : before.doneToday ? "again" : gotReward ? "reward" : c >= 14 ? "clear14" : c >= 7 ? "clear7" : c >= 4 ? "clear4" : c >= 2 ? "clear2" : "clear_first";
+  const line = s.lvl.ri > before.lvl.ri ? "ランクアップや！今日から「"+s.lvl.rank+"」やで！かっこええ！"
+    : before.doneToday ? "今日2回目！その1回がライバルとの差になるんや。かっこええで！"
+    : gotReward ? "やったー！お小遣いゲットや！"+c+"日れんぞく、ほんまにすごいで！"
+    : c >= 14 ? c+"日れんぞく！もう止まらへんな！ユニフォーム、近づいとるで！"
+    : c >= 7 ? "めっちゃすごい！"+c+"日れんぞくや！ドリブル、うまなってきとるで！"
+    : c >= 4 ? "すごいやん！"+c+"日れんぞくやで！この調子や！"
+    : c >= 2 ? "ナイスや！"+c+"日れんぞく！明日も一緒にやろな！"
+    : "ナイスや！今日から記録スタートやで！明日も待っとるで！";
+  setDori($("fDori"), c >= 7 || gotReward ? "wow" : "cheer", c >= 7 || gotReward ? "m-party" : c >= 3 ? "m-jump" : "m-hop");
+  bubble($("fSay"), line);
+  const chips = ['<span class="chip">+'+gain+' XP</span>'];
+  if(lvUp) chips.push('<span class="chip hot">レベルアップ！Lv'+s.lvl.lv+' '+s.lvl.rank+'</span>');
+  newBadges.forEach(b => chips.push('<span class="chip hot">バッジ「'+b.label+'」ゲット</span>'));
+  if(gotTicket) chips.push('<span class="chip hot">おやすみチケット +1</span>');
+  if(before.pending.length) chips.push('<span class="chip">チケットで連続キープ</span>');
+  $("fChips").innerHTML = chips.join("");
+  const ch = $("fChest"); ch.hidden = !bonus; ch.className = "chest"; ch.textContent = "ボーナスの宝箱をあける"; ch.disabled = false;
+  ch.onclick = () => { ch.className = "chest open"; ch.textContent = "ボーナス +"+bonus+" XP！"; ch.disabled = true; sfx.chest();
+    if(bonus >= 20) say($("fSay"), "大当たりや！ボーナス"+bonus+"や！", null, "jackpot"); };
+  $("finish").hidden = false; sfx.win(); if(gotReward) sfx.coin(); confetti();
+  try{ navigator.vibrate && navigator.vibrate([80,60,80,60,200]); }catch(e){}
+  setTimeout(() => speak(line, gotReward ? "reward" : "clear", lv), 900);
+}
+$("fOk").onclick = () => { $("finish").hidden = true; stopSpeak(); };
+
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cv = $("confetti"), cx = cv.getContext("2d"), dpr = devicePixelRatio||1;
+  cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; cx.scale(dpr,dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = ["--ball","--court","--win"].map(v=>cs.getPropertyValue(v).trim());
+  const ps = Array.from({length:120},()=>({x:innerWidth/2,y:innerHeight*.35,vx:(Math.random()-.5)*12,vy:-Math.random()*12-4,r:Math.random()*6+4,c:cols[Math.floor(Math.random()*3)],a:Math.random()*6}));
+  let f = 0;
+  (function step(){ cx.clearRect(0,0,innerWidth,innerHeight);
+    ps.forEach(p=>{ p.vy+=.35; p.x+=p.vx; p.y+=p.vy; p.a+=.2; cx.save(); cx.translate(p.x,p.y); cx.rotate(p.a); cx.fillStyle=p.c; cx.fillRect(-p.r/2,-p.r/4,p.r,p.r/2); cx.restore(); });
+    if(++f < 160 && !$("finish").hidden) requestAnimationFrame(step); else cx.clearRect(0,0,innerWidth,innerHeight); })();
+}
+
+/* ---------- settings ---------- */
+$("openSet").onclick = () => {
+  $("rDays").value = state.rewardDays; $("rYen").value = state.rewardYen;
+  $("twoBall").checked = !!state.twoBalls; $("sndOn").checked = !!state.sound; $("voiceOn").checked = !!state.voice; $("zundaSel").value = state.zunda === false ? "0" : "1"; $("ttsVoice").value = state.ttsVoice || "airy"; $("fzOn").checked = state.freezeOn !== false; renderVoiceUI();
+  resetUI(); renderStore(); render(); $("setDlg").showModal();
+};
+$("rDays").onchange = e => { const v = Math.min(60, Math.max(1, parseInt(e.target.value)||7)); state.rewardDays = v; e.target.value = v; save(); render(); };
+$("rYen").onchange = e => { const v = Math.max(0, parseInt(e.target.value)||0); state.rewardYen = v; save(); render(); };
+$("twoBall").onchange = e => { state.twoBalls = e.target.checked; save(); render(); };
+$("sndOn").onchange = e => { state.sound = e.target.checked; save(); render(); };
+$("voiceOn").onchange = e => { state.voice = e.target.checked; save(); render(); if(state.voice){ audio(); speak("しゃべるで！よろしくな！", null, "voice_on"); } };
+$("ttsVoice").onchange = e => { state.ttsVoice = e.target.value; save(); speak("ナイスや！この声でいこか！"); };
+$("fzOn").onchange = e => { state.freezeOn = e.target.checked; save(); render(); };
+$("payBtn").onclick = () => { state.paid = stats().earned; save(); render(); };
+function resetUI(){
+  $("resetArea").innerHTML = '<button class="btn danger" type="button" id="resetBtn">記録をぜんぶ消す</button>';
+  $("resetBtn").onclick = () => {
+    $("resetArea").innerHTML = '<span>連続記録とお小遣いの記録が消えます。</span><button class="btn danger" type="button" id="resetYes">消す</button><button class="btn" type="button" id="resetNo">やめる</button>';
+    $("resetYes").onclick = () => { state = {...state, days:{}, paid:0, xp:0, tickets:1, frozen:{}}; save(); render(); resetUI(); };
+    $("resetNo").onclick = resetUI;
+  };
+}
+
+/* midnight rollover */
+let shown = keyOf(today());
+setInterval(()=>{ const k = keyOf(today()); if(k!==shown){ shown=k; render(); } }, 60000);
+
+render(); renderStore(); renderVoiceUI(); renderRec(); loadClips(); initStore();
+})();
+</script>
+
+</body>
+</html>

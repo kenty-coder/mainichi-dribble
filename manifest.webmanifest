@@ -1,0 +1,9 @@
+{
+  "name": "まいにちドリブル",
+  "short_name": "ドリブル",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#EEF1F8",
+  "theme_color": "#2445C9",
+  "icons": [{"src": "doribu-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}]
+}
